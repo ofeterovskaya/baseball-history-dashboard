@@ -1,45 +1,19 @@
 import logging
+import sys
 import time
 from pathlib import Path
-
 import pandas as pd
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import DATA_DIR, SCRAPING_LOG_DIR
+from scraping.common import build_driver, setup_logging
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BASE_DIR / "data"
-LOG_DIR = BASE_DIR / "scraping" / "logs"
+LOG_DIR = SCRAPING_LOG_DIR
 
 RAW_OUTPUT = DATA_DIR / "years_raw.csv"
 CLEAN_OUTPUT = DATA_DIR / "years_cleaned.csv"
-
 URL = "https://www.baseball-almanac.com/yearmenu.shtml"
-
-def setup_logging() -> None:
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(LOG_DIR / "scrape_baseball_data.log", encoding="utf-8"),
-        ],
-    )
-
-def build_driver(headless: bool = True) -> webdriver.Chrome:
-    options = Options()
-    options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    )
-    if headless:
-        options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--window-size=1920,1080")
-    return webdriver.Chrome(options=options)
 
 def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
     links = driver.find_elements(By.TAG_NAME, "a")
@@ -47,10 +21,8 @@ def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
     for link in links:
         text = (link.text or "").strip()
         href = link.get_attribute("href")
-
         if not text or not href:
             continue
-
         if text.isdigit() and len(text) == 4:
             rows.append(
                 {
@@ -119,7 +91,7 @@ def clean_year_links(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned
 
 def main() -> None:
-    setup_logging()
+    setup_logging(LOG_DIR / "scrape_baseball_data.log")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     logging.info("Starting scrape: %s", URL)
     raw_df = scrape_year_links(headless=True)
