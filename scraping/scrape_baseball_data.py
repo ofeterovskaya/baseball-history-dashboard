@@ -1,3 +1,6 @@
+"""Program 1 (part A): scrape year links from Baseball Almanac.
+This file collects year pages and saves raw + cleaned CSV files.
+"""
 import logging
 import sys
 import time
@@ -10,11 +13,11 @@ from config import DATA_DIR, SCRAPING_LOG_DIR
 from scraping.common import build_driver, setup_logging
 
 LOG_DIR = SCRAPING_LOG_DIR
-
 RAW_OUTPUT = DATA_DIR / "years_raw.csv"
 CLEAN_OUTPUT = DATA_DIR / "years_cleaned.csv"
 URL = "https://www.baseball-almanac.com/yearmenu.shtml"
 
+# Extract all year links like 1876, 1877, ... from the current page.
 def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
     links = driver.find_elements(By.TAG_NAME, "a")
     rows = []
@@ -32,6 +35,7 @@ def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
             )
     return rows
 
+# Try to move to the next page when pagination exists.
 def try_go_to_next_page(driver: webdriver.Chrome) -> bool:
     next_candidates = driver.find_elements(
         By.XPATH,
@@ -47,6 +51,7 @@ def try_go_to_next_page(driver: webdriver.Chrome) -> bool:
     time.sleep(1.5)
     return True
 
+# Main scraping loop: open site, collect rows, and stop on repeated pages.
 def scrape_year_links(start_url: str = URL, headless: bool = True, max_pages: int = 10) -> pd.DataFrame:
     driver = build_driver(headless=headless)
     all_rows: list[dict] = []
@@ -71,6 +76,7 @@ def scrape_year_links(start_url: str = URL, headless: bool = True, max_pages: in
         driver.quit()
     return pd.DataFrame(all_rows)
 
+# Basic cleaning: remove bad rows, remove duplicates, sort by year.
 def clean_year_links(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=["year", "url"])
@@ -83,13 +89,13 @@ def clean_year_links(df: pd.DataFrame) -> pd.DataFrame:
     cleaned = cleaned.dropna(subset=["year", "url"])
     cleaned = cleaned[cleaned["year"].between(1800, 2100)]
     cleaned = cleaned[cleaned["url"] != ""]
-
     cleaned = cleaned.drop_duplicates(subset=["year", "url"]).sort_values("year")
     cleaned = cleaned.reset_index(drop=True)
 
     logging.info("Cleaning complete: %s -> %s rows", before_rows, len(cleaned))
     return cleaned
 
+# Script entry point.
 def main() -> None:
     setup_logging(LOG_DIR / "scrape_baseball_data.log")
     DATA_DIR.mkdir(parents=True, exist_ok=True)

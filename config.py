@@ -1,3 +1,7 @@
+"""Shared project configuration from .env.
+This file stores common paths used by all programs
+(scraping, database import, and query CLI).
+"""
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -5,6 +9,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
+# Read a required path from .env and convert relative paths to absolute.
 def require_env_path(env_name: str) -> Path:
     raw_value = os.getenv(env_name)
     if not raw_value:
