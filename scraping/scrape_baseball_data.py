@@ -16,7 +16,6 @@ CLEAN_OUTPUT = DATA_DIR / "years_cleaned.csv"
 
 URL = "https://www.baseball-almanac.com/yearmenu.shtml"
 
-
 def setup_logging() -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
@@ -27,7 +26,6 @@ def setup_logging() -> None:
             logging.FileHandler(LOG_DIR / "scrape_baseball_data.log", encoding="utf-8"),
         ],
     )
-
 
 def build_driver(headless: bool = True) -> webdriver.Chrome:
     options = Options()
@@ -43,11 +41,9 @@ def build_driver(headless: bool = True) -> webdriver.Chrome:
     options.add_argument("--window-size=1920,1080")
     return webdriver.Chrome(options=options)
 
-
 def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
     links = driver.find_elements(By.TAG_NAME, "a")
     rows = []
-
     for link in links:
         text = (link.text or "").strip()
         href = link.get_attribute("href")
@@ -62,37 +58,29 @@ def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
                     "url": href.strip(),
                 }
             )
-
     return rows
-
 
 def try_go_to_next_page(driver: webdriver.Chrome) -> bool:
     next_candidates = driver.find_elements(
         By.XPATH,
         "//a[contains(translate(normalize-space(text()), 'NEXT', 'next'), 'next')]",
     )
-
     if not next_candidates:
         return False
-
     next_link = next_candidates[0]
     href = next_link.get_attribute("href")
     if not href:
         return False
-
     driver.get(href)
     time.sleep(1.5)
     return True
 
-
 def scrape_year_links(start_url: str = URL, headless: bool = True, max_pages: int = 10) -> pd.DataFrame:
     driver = build_driver(headless=headless)
     all_rows: list[dict] = []
-
     try:
         driver.get(start_url)
         time.sleep(2)
-
         visited_urls = set()
         for page_number in range(1, max_pages + 1):
             current_url = driver.current_url
@@ -104,16 +92,12 @@ def scrape_year_links(start_url: str = URL, headless: bool = True, max_pages: in
             page_rows = extract_year_links(driver)
             logging.info("Page %s: collected %s candidate rows", page_number, len(page_rows))
             all_rows.extend(page_rows)
-
             moved = try_go_to_next_page(driver)
             if not moved:
                 break
-
     finally:
         driver.quit()
-
     return pd.DataFrame(all_rows)
-
 
 def clean_year_links(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
@@ -134,11 +118,9 @@ def clean_year_links(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Cleaning complete: %s -> %s rows", before_rows, len(cleaned))
     return cleaned
 
-
 def main() -> None:
     setup_logging()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-
     logging.info("Starting scrape: %s", URL)
     raw_df = scrape_year_links(headless=True)
     raw_df.to_csv(RAW_OUTPUT, index=False)
@@ -149,7 +131,6 @@ def main() -> None:
     logging.info("Saved cleaned CSV: %s (%s rows)", CLEAN_OUTPUT, len(cleaned_df))
 
     print(cleaned_df.head())
-
 
 if __name__ == "__main__":
     main()
