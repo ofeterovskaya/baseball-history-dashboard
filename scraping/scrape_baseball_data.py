@@ -1,22 +1,18 @@
 import logging
+import sys
 import time
 from pathlib import Path
-
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import DATA_DIR, SCRAPING_LOG_DIR
+from scraping.common import build_driver, setup_logging
 
-try:
-    from scraping.common import BASE_DIR, build_driver, resolve_path, setup_logging
-except ModuleNotFoundError:
-    from common import BASE_DIR, build_driver, resolve_path, setup_logging
-
-DATA_DIR = resolve_path("DATA_DIR", BASE_DIR / "data")
-LOG_DIR = resolve_path("SCRAPING_LOG_DIR", BASE_DIR / "scraping" / "logs")
+LOG_DIR = SCRAPING_LOG_DIR
 
 RAW_OUTPUT = DATA_DIR / "years_raw.csv"
 CLEAN_OUTPUT = DATA_DIR / "years_cleaned.csv"
-
 URL = "https://www.baseball-almanac.com/yearmenu.shtml"
 
 def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
@@ -25,10 +21,8 @@ def extract_year_links(driver: webdriver.Chrome) -> list[dict]:
     for link in links:
         text = (link.text or "").strip()
         href = link.get_attribute("href")
-
         if not text or not href:
             continue
-
         if text.isdigit() and len(text) == 4:
             rows.append(
                 {

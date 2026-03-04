@@ -1,20 +1,19 @@
 import argparse
 import logging
 import re
+import sys
 import time
 from pathlib import Path
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-try:
-    from scraping.common import BASE_DIR, build_driver, resolve_path, setup_logging
-except ModuleNotFoundError:
-    from common import BASE_DIR, build_driver, resolve_path, setup_logging
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from config import DATA_DIR, SCRAPING_LOG_DIR
+from scraping.common import build_driver, setup_logging
 
-DATA_DIR = resolve_path("DATA_DIR", BASE_DIR / "data")
-LOG_DIR = resolve_path("SCRAPING_LOG_DIR", BASE_DIR / "scraping" / "logs")
+LOG_DIR = SCRAPING_LOG_DIR
 YEARS_CANDIDATES = [DATA_DIR / "years_cleaned.csv", DATA_DIR / "years.csv"]
 RAW_OUTPUT = DATA_DIR / "events_raw.csv"
 CLEAN_OUTPUT = DATA_DIR / "events.csv"
@@ -131,17 +130,19 @@ def clean_events(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(columns=["year", "event_rank", "event_text", "source_url", "source_element_index"])
 
     cleaned = df.copy()
-    cleaned["year"] = pd.to_numeric(cleaned["year"], errors="coerce").astype("Int64")
-    cleaned["event_rank"] = pd.to_numeric(cleaned["event_rank"], errors="coerce").astype("Int64")
-    cleaned["source_element_index"] = pd.to_numeric(cleaned["source_element_index"], errors="coerce").astype("Int64")
+    cleaned["year"] = pd.to_numeric(cleaned["year"], errors="coerce")
     cleaned["event_text"] = cleaned["event_text"].astype(str).apply(normalize_text)
     cleaned["source_url"] = cleaned["source_url"].astype(str).str.strip()
+
     before_rows = len(cleaned)
+
     cleaned = cleaned.dropna(subset=["year", "event_text", "source_url"])
     cleaned = cleaned[cleaned["event_text"] != ""]
     cleaned = cleaned.drop_duplicates(subset=["year", "event_text"])
-    cleaned = cleaned.sort_values(["year", "event_rank", "source_element_index"], na_position="last")
+    cleaned["year"] = cleaned["year"].astype(int)
+    cleaned = cleaned.sort_values("year")
     cleaned = cleaned.reset_index(drop=True)
+
     logging.info("Events cleaning complete: %s -> %s rows", before_rows, len(cleaned))
     return cleaned
 

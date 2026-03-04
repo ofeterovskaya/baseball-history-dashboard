@@ -1,26 +1,12 @@
 import logging
-import os
 import re
 import sqlite3
+import sys
 from pathlib import Path
 import pandas as pd
-from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-load_dotenv(BASE_DIR / ".env")
-
-
-def resolve_path(env_name: str, default_path: Path) -> Path:
-    raw_value = os.getenv(env_name)
-    if not raw_value:
-        raise RuntimeError(f"Missing required environment variable: {env_name}")
-    candidate = Path(raw_value).expanduser()
-    return candidate if candidate.is_absolute() else BASE_DIR / candidate
-
-
-DATA_DIR = resolve_path("DATA_DIR", BASE_DIR / "data")
-DB_DIR = resolve_path("DB_DIR", BASE_DIR / "database")
-DB_PATH = resolve_path("DB_PATH", DB_DIR / "baseball.db")
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import DATA_DIR, DB_DIR, DB_PATH
 
 def setup_logging() -> None:
     logging.basicConfig(
@@ -51,45 +37,22 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         used_names.add(final_name)
     return df.rename(columns=renamed)
 
-def infer_types(df: pd.DataFrame) -> pd.DataFrame:
-    converted = df.copy()
-    for col in converted.columns:
-        series = converted[col]
-        if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_datetime64_any_dtype(series):
-            continue
-        if series.dtype != object:
-            continue
-        stripped = series.astype(str).str.strip()
-        stripped = stripped.replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
-        numeric_candidate = pd.to_numeric(stripped, errors="coerce")
-        numeric_ratio = numeric_candidate.notna().mean()
-        if numeric_ratio >= 0.9 and numeric_candidate.notna().sum() > 0:
-            converted[col] = numeric_candidate
-            continue
-
-        non_null_values = stripped.dropna().astype(str)
-        looks_date_like = non_null_values.str.contains(
-            r"\d{1,4}[-/]\d{1,2}[-/]\d{1,4}|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b",
-            case=False,
-            regex=True,
-        ).mean() >= 0.5 if not non_null_values.empty else False
-
-        if looks_date_like:
-            datetime_candidate = pd.to_datetime(stripped, errors="coerce")
-            datetime_ratio = datetime_candidate.notna().mean()
-            if datetime_ratio >= 0.9 and datetime_candidate.notna().sum() > 0:
-                converted[col] = datetime_candidate.astype(str)
-                continue
-        converted[col] = stripped
-    return converted
+def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    cleaned = normalize_columns(df)
+    for col in cleaned.columns:
+        if cleaned[col].dtype == object:
+            cleaned[col] = cleaned[col].astype(str).str.strip()
+    for col in ["year", "event_rank", "source_element_index"]:
+        if col in cleaned.columns:
+            cleaned[col] = pd.to_numeric(cleaned[col], errors="coerce")
+    return cleaned
 
 def import_csv_to_table(connection: sqlite3.Connection, csv_path: Path) -> tuple[str, int]:
     table_name = table_name_from_file(csv_path)
     df = pd.read_csv(csv_path)
     if df.empty and len(df.columns) == 0:
         raise ValueError(f"CSV has no columns: {csv_path}")
-    df = normalize_columns(df)
-    df = infer_types(df)
+    df = prepare_dataframe(df)
     df.to_sql(table_name, connection, if_exists="replace", index=False)
     logging.info("Imported %s -> table '%s' (%s rows)", csv_path.name, table_name, len(df))
     return table_name, len(df)
