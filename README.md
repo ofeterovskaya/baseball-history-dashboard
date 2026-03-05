@@ -97,16 +97,15 @@ The dashboard includes:
 
 ## Deployment
 
-Deploy the Streamlit app to Streamlit Community Cloud or Render.
-
-After deployment, add:
-- Public dashboard URL
-- Final screenshot in this README
+Available at your primary URL 
+https://baseball-history-dashboard-k63p.onrender.com
 
 ## Screenshot
+<img width="1865" height="835" alt="1" src="https://github.com/user-attachments/assets/15b0062c-4abf-4297-82eb-8d5addc2d6bf" />
 
-Add dashboard screenshot here after final UI run.
+<img width="1607" height="773" alt="2" src="https://github.com/user-attachments/assets/69eb5626-f796-4be4-9d92-e3bc65345b7e" />
 
-Example placeholder:
+<img width="1852" height="812" alt="3" src="https://github.com/user-attachments/assets/1d5ac494-6d40-4e2d-a284-ab526fef7220" />
 
-`![Dashboard Screenshot](dashboard_screenshot.png)`
+
+
