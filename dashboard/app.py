@@ -94,6 +94,13 @@ def main() -> None:
         st.warning("No events found in database.")
         return
 
+    # Exclude the current year because it is still in progress and can skew trends.
+    current_year = pd.Timestamp.now().year
+    events = events[events["year"] < current_year].copy()
+    if events.empty:
+        st.warning("No completed years available after filtering out the current year.")
+        return
+
     min_year = int(events["year"].min())
     max_year = int(events["year"].max())
 
