@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 *.db
+!database/baseball.db
 .env
 venv/
 .venv/
